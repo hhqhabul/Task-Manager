@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Task Manager (HTML-only base)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A semantic, accessible task manager scaffold ready for progressive enhancement." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<!-- Toast notifications -->
+<div id="toast-stack" aria-live="polite" aria-atomic="true"></div>\
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.error('SW registration failed:', err));
+  });
+}
+</script>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header role="banner">
+    <div class="container">
+      <nav aria-label="Primary">
+        <a href="#" rel="home" class="brand" aria-current="page">Task Manager</a>
+        <ul>
+          <li><a href="#add">Add Task</a></li>
+          <li><a href="#tasks">Tasks</a></li>
+          <li><a href="#filters">Filters</a></li>
+          <li><a href="#about">About</a></li>
+        </ul>
+      </nav>
+
+      <section aria-label="At-a-glance">
+        <!-- Placeholder counters; JS can update these later -->
+        <p><strong id="count-total" aria-live="polite">0</strong> total •
+           <strong id="count-open" aria-live="polite">0</strong> open •
+           <strong id="count-done" aria-live="polite">0</strong> done</p>
+        <progress id="progress" value="0" max="100" aria-label="Completion"></progress>
+      </section>
+    </div>
+  </header>
+
+  <main id="main" role="main" class="container">
+    <!-- ADD TASK -->
+    <section id="add" aria-labelledby="add-title">
+      <h1 id="add-title">Add a task</h1>
+
+      <!-- This form is fully functional HTML. JS will enhance later. -->
+      <form id="task-form" action="#" method="post" novalidate autocomplete="on">
+        <fieldset>
+          <legend>Details</legend>
+
+          <div>
+            <label for="title">Title <span aria-hidden="true">*</span></label>
+            <input id="title" name="title" type="text" required
+                   minlength="2" maxlength="120"
+                   placeholder="e.g., Finish resume"
+                   aria-describedby="title-hint"
+                   autocomplete="off" />
+            <p id="title-hint">Keep it short and actionable.</p>
+          </div>
+
+          <div>
+            <label for="description">Notes</label>
+            <textarea id="description" name="description" rows="3" maxlength="1000"
+                      placeholder="Optional notes or subtasks"></textarea>
+          </div>
+
+          <div>
+            <label for="due">Due date</label>
+            <input id="due" name="due" type="date" min="1970-01-01" />
+          </div>
+
+          <div>
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+              <option value="med" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" list="tag-suggestions" inputmode="verbatim"
+                   placeholder="Comma-separated, e.g., school, frontend" />
+            <datalist id="tag-suggestions">
+              <option value="school"></option>
+              <option value="frontend"></option>
+              <option value="career"></option>
+              <option value="personal"></option>
+              <option value="errands"></option>
+            </datalist>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Status</legend>
+          <div>
+            <label for="status">Set as</label>
+            <select id="status" name="status">
+              <option value="todo" selected>To do</option>
+              <option value="inprogress">In progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <div>
+          <!-- Submit won’t “do” anything without JS or a server; we keep it for structure -->
+          <button type="submit" aria-describedby="submit-hint">Add task</button>
+          <p id="submit-hint">This will be wired up later with JavaScript.</p>
+        </div>
+
+        <output id="form-feedback" role="status" aria-live="polite"></output>
+      </form>
+
+      <noscript>
+        <p><strong>Note:</strong> JavaScript is disabled, so new tasks won’t be saved. We’ll add progressive enhancement next.</p>
+      </noscript>
+    </section>
+
+    <!-- FILTERS (collapsible) -->
+    <section id="filters" aria-labelledby="filters-title">
+      <h2 id="filters-title">Filters</h2>
+      <details>
+        <summary>Show filters</summary>
+        <form id="filter-form" action="#" method="get">
+          <div>
+            <label for="q">Search</label>
+            <input id="q" name="q" type="search" placeholder="Find by title…" />
+          </div>
+
+          <div>
+            <label for="f-priority">Priority</label>
+            <select id="f-priority" name="priority">
+              <option value="">Any</option>
+              <option value="high">High</option>
+              <option value="med">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="f-due">Due window</label>
+            <select id="f-due" name="due">
+              <option value="">Any time</option>
+              <option value="today">Due today</option>
+              <option value="week">Due this week</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="f-tag">Tag</label>
+            <input id="f-tag" name="tag" list="tag-suggestions" placeholder="e.g., school" />
+          </div>
+
+          <!-- Sort control -->
+          <div>
+            <label for="f-sort">Sort by</label>
+            <select id="f-sort" name="sort">
+              <option value="created">Created</option>
+              <option value="due-asc">Due date (soonest)</option>
+              <option value="due-desc">Due date (latest)</option>
+              <option value="prio">Priority</option>
+              <option value="status">Status</option>
+              <option value="manual">Manual (drag & drop)</option>
+            </select>
+          </div>
+
+          <!-- Buttons hookable with JS -->
+          <div>
+            <button type="submit">Apply</button>
+            <button type="reset">Clear</button>
+          </div>
+
+          <!-- Data tools (Export / Import) -->
+          <div>
+            <label>Data</label>
+            <div class="inline-actions">
+              <button type="button" id="btn-export">Export JSON</button>
+              <button type="button" id="btn-import">Import JSON</button>
+              <input type="file" id="import-file" accept="application/json" hidden>
+            </div>
+          </div>
+        </form>
+      </details>
+    </section>
+
+      <!-- TASK LIST  -->
+      <section id="tasks" aria-labelledby="tasks-title">
+        <h2 id="tasks-title">Tasks</h2>
+
+        <!-- Live region for “no results” / feedback -->
+        <p id="empty-message" role="status" aria-live="polite" hidden>No tasks yet.</p>
+
+        <!-- ItemList microdata to help SEO/semantics -->
+        <ul id="task-list" itemscope itemtype="https://schema.org/ItemList"></ul>
+
+        <!-- Template for future JS rendering (ignored by browsers visually) -->
+        <template id="task-item-template">
+          <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+            <meta itemprop="position" content="">
+            <article itemscope itemtype="https://schema.org/ToDoAction" aria-labelledby="">
+              <header>
+                <h3 itemprop="name"></h3>
+              </header>
+              <p itemprop="description"></p>
+              <ul aria-label="Task metadata">
+                <li>Priority: <data itemprop="priority"></data></li>
+                <li>Due: <time itemprop="endTime" datetime=""></time></li>
+                <li>Tags: <span class="tags"></span></li>
+                <li>Status: <data itemprop="actionStatus"></data></li>
+              </ul>
+              <div aria-label="Actions">
+                <button type="button" class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder" hidden>↕</button>
+                <button type="button">Edit</button>
+                <button type="button">Delete</button>
+                <button type="button">Toggle</button>
+              </div>
+            </article>
+          </li>
+        </template>
+      </section>
+
+    <!-- EDIT DIALOG (HTML structure only, wiring later) -->
+    <section aria-label="Dialogs">
+      <dialog id="edit-dialog" aria-labelledby="edit-title">
+        <form method="dialog" id="edit-form">
+          <h2 id="edit-title">Edit task</h2>
+
+          <label for="edit-title-input">Title</label>
+          <input id="edit-title-input" name="title" type="text" required minlength="2" maxlength="120" />
+
+          <label for="edit-notes-input">Notes</label>
+          <textarea id="edit-notes-input" name="description" rows="3" maxlength="1000"></textarea>
+
+          <label for="edit-due-input">Due date</label>
+          <input id="edit-due-input" name="due" type="date" />
+
+          <label for="edit-priority-input">Priority</label>
+          <select id="edit-priority-input" name="priority">
+            <option value="high">High</option>
+            <option value="med" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+
+          <menu>
+            <button value="cancel">Cancel</button>
+            <button value="save">Save</button>
+          </menu>
+        </form>
+      </dialog>
+
+      <!-- CONFIRM DIALOG -->
+      <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-desc">
+        <form method="dialog" id="confirm-form">
+          <h2 id="confirm-title">Confirm action</h2>
+          <p id="confirm-desc">Are you sure?</p>
+          <menu>
+            <button value="cancel">Cancel</button>
+            <button value="ok" class="danger">OK</button>
+          </menu>
+        </form>
+      </dialog>
+    </section>
+  </main>
+
+  <footer role="contentinfo">
+    <div class="container">
+      <p>© <time datetime="2025">2025</time> HHQH.Abul.</p>
+    </div>
+  </footer>
+
+  <script src="js/app.js" defer></script>
+
+</body>
+</html>
