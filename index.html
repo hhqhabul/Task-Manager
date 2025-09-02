@@ -177,7 +177,7 @@ if ('serviceWorker' in navigator) {
             </select>
           </div>
 
-          <!-- Buttons hookable with JS -->
+          <!-- Buttons -->
           <div>
             <button type="submit">Apply</button>
             <button type="reset">Clear</button>
@@ -196,6 +196,28 @@ if ('serviceWorker' in navigator) {
       </details>
     </section>
 
+    <!-- Reminder settings panel -->
+    <section id="settings" aria-labelledby="settings-title">
+      <h2 id="settings-title">Settings</h2>
+      <details>
+        <summary>Show reminder settings</summary>
+        <form id="settings-form">
+          <div>
+            <label><input type="checkbox" id="opt-reminders"> Enable due-date reminders</label>
+          </div>
+          <div>
+            <label for="opt-remind-time">Reminder time (on due date)</label>
+            <input id="opt-remind-time" type="time" value="09:00" />
+          </div>
+          <p class="muted">Notifications use your browser’s permission. If blocked, you’ll still get in-app toasts.</p>
+          <div>
+            <button type="submit">Save settings</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+
       <!-- TASK LIST  -->
       <section id="tasks" aria-labelledby="tasks-title">
         <h2 id="tasks-title">Tasks</h2>
@@ -206,7 +228,7 @@ if ('serviceWorker' in navigator) {
         <!-- ItemList microdata to help SEO/semantics -->
         <ul id="task-list" itemscope itemtype="https://schema.org/ItemList"></ul>
 
-        <!-- Template for future JS rendering (ignored by browsers visually) -->
+        <!-- Template for future JS rendering -->
         <template id="task-item-template">
           <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
             <meta itemprop="position" content="">
@@ -232,7 +254,7 @@ if ('serviceWorker' in navigator) {
         </template>
       </section>
 
-    <!-- EDIT DIALOG (HTML structure only, wiring later) -->
+    <!-- EDIT DIALOG  -->
     <section aria-label="Dialogs">
       <dialog id="edit-dialog" aria-labelledby="edit-title">
         <form method="dialog" id="edit-form">

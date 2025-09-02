@@ -1,6 +1,7 @@
 /* Task Manager – add/render/persist + Filters + Delete (custom confirm) + Toggle + Edit dialog
    + Sorting (robust) + Sort persistence + Export/Import JSON + Toasts
-   + Manual sort (drag & drop + keyboard) with order persistence */
+   + Manual sort (drag & drop + keyboard) with order persistence
+   + Settings + Due-date reminders (Notifications + toast fallback) */
 (function () {
   // ---------- tiny utils ----------
   function $(s, el){ return (el || document).querySelector(s); }
@@ -13,7 +14,7 @@
 
   // ---------- storage ----------
   var KEY = "tm.tasks.v1";
-  var KEY_SORT = "tm.sort.v1"; 
+  var KEY_SORT = "tm.sort.v1";
   function load(){ try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch(e){ return []; } }
   function save(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
 
@@ -58,7 +59,7 @@
     editDue: $("#edit-due-input"),
     editPriority: $("#edit-priority-input"),
 
-    // confirm dialog + toasts (from previous step)
+    // confirm dialog + toasts
     cDialog: $("#confirm-dialog"),
     cForm: $("#confirm-form"),
     cDesc: $("#confirm-desc"),
@@ -67,7 +68,12 @@
     // data tools
     btnExport: $("#btn-export"),
     btnImport: $("#btn-import"),
-    inputImport: $("#import-file")
+    inputImport: $("#import-file"),  // ✅ missing comma fixed
+
+    // settings
+    sForm: $("#settings-form"),
+    optRem: $("#opt-reminders"),
+    optTime: $("#opt-remind-time")
   };
 
   // ---------- toasts ----------
@@ -128,7 +134,6 @@
   (function migrateOrder(){
     var needs = tasks.some(function(t){ return typeof t.order !== "number"; });
     if (needs){
-      // seed order by createdAt (oldest first)
       tasks.sort(function(a,b){ return new Date(a.createdAt) - new Date(b.createdAt); });
       tasks.forEach(function(t,i){ t.order = i+1; });
       save(tasks);
@@ -351,6 +356,113 @@
     updateCounters(view);
   }
 
+  // ---------- Settings (load/save) + Reminders ----------
+  var KEY_SETTINGS = "tm.settings.v1";
+  var KEY_NOTIFIED = "tm.notified.v1"; // { [taskId]: "YYYY-MM-DD" }
+
+  var settings = loadSettings();
+  var notified = loadNotified();
+
+  // apply settings to controls on boot
+  if (el.optRem) el.optRem.checked = !!settings.enableReminders;
+  if (el.optTime) el.optTime.value = settings.remindTime || "09:00";
+
+  // wire settings form
+  if (el.sForm) {
+    el.sForm.addEventListener("submit", function(e){
+      e.preventDefault();
+      settings.enableReminders = !!(el.optRem && el.optRem.checked);
+      settings.remindTime = (el.optTime && el.optTime.value) || "09:00";
+      saveSettings(settings);
+      if (settings.enableReminders) ensureNotificationPermission();
+      scheduleReminders(true);
+      showToast("Settings saved.", "success", 1500);
+    });
+  }
+
+  function loadSettings(){
+    try { return JSON.parse(localStorage.getItem(KEY_SETTINGS) || "{}"); } catch(e){ return {}; }
+  }
+  function saveSettings(s){
+    localStorage.setItem(KEY_SETTINGS, JSON.stringify(s || {}));
+  }
+  function loadNotified(){
+    try { return JSON.parse(localStorage.getItem(KEY_NOTIFIED) || "{}"); } catch(e){ return {}; }
+  }
+  function markNotified(id, dateStr){
+    notified[id] = dateStr;
+    localStorage.setItem(KEY_NOTIFIED, JSON.stringify(notified));
+  }
+
+  function ensureNotificationPermission(){
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      try { Notification.requestPermission().catch(function(){}); } catch(_) {}
+    }
+  }
+
+  function parseTimeHHMM(t){
+    var m = /^(\d{1,2}):(\d{2})$/.exec(t||"");
+    var h = m ? Math.min(23, Math.max(0, parseInt(m[1],10))) : 9;
+    var mi = m ? Math.min(59, Math.max(0, parseInt(m[2],10))) : 0;
+    return {h:h, m:mi};
+  }
+
+  var reminderTimers = [];
+  function clearReminders(){
+    while (reminderTimers.length) clearTimeout(reminderTimers.pop());
+  }
+
+  function scheduleReminders(showHint){
+    clearReminders();
+    if (!settings.enableReminders) return;
+
+    ensureNotificationPermission();
+    var time = parseTimeHHMM(settings.remindTime || "09:00");
+
+    tasks.forEach(function(t){
+      if (!t.due || t.status === "done") return;
+
+      var due = new Date(t.due + "T00:00:00");
+      due.setHours(time.h, time.m, 0, 0);
+
+      var delay = due.getTime() - Date.now();
+      var dueStr = t.due;
+
+      if (notified[t.id] === dueStr) return;
+
+      if (delay <= 0) {
+        reminderTimers.push(setTimeout(function(){ fireReminder(t); }, 300));
+        return;
+      }
+      if (delay < 30*24*60*60*1000) {
+        reminderTimers.push(setTimeout(function(){ fireReminder(t); }, delay));
+      }
+    });
+
+    if (showHint) showToast("Reminders scheduled.", "info", 1400);
+  }
+
+  function fireReminder(task){
+    var t = tasks.find(function(x){ return x.id === task.id; });
+    if (!t || t.status === "done") return;
+
+    var title = t.title || "Task due";
+    var body = (t.description ? t.description + "\n" : "") +
+               "Due: " + (t.due || "—") + (t.priority ? " • Priority: " + t.priority.toUpperCase() : "");
+
+    var showedNative = false;
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, { body: body, tag: "task-"+t.id });
+        showedNative = true;
+      } catch(_) {}
+    }
+    if (!showedNative) showToast("Due: " + title, "warn", 4000);
+
+    markNotified(t.id, t.due);
+  }
+
   // ---------- Edit helpers ----------
   function openEditDialog(task){
     editingId = task.id;
@@ -366,7 +478,7 @@
       if (newTitle && newTitle.trim().length >= 2) {
         task.title = newTitle.trim();
         task.updatedAt = new Date().toISOString();
-        save(tasks); render();
+        save(tasks); render(); scheduleReminders(false);
       }
       editingId = null;
     }
@@ -389,6 +501,7 @@
       t.updatedAt = new Date().toISOString();
       save(tasks);
       render();
+      scheduleReminders(false);
       editingId = null;
       showToast("Task updated.", "success", 2000);
     });
@@ -421,6 +534,7 @@
       } else { el.feedback.textContent = "Task added!"; }
 
       el.form.reset(); el.title.focus(); render();
+      scheduleReminders(false);
       showToast("Task added.", "success", 2000);
     });
   }
@@ -496,6 +610,7 @@
           tasks.splice(idx, 1);
           save(tasks);
           render();
+          scheduleReminders(false);
           if (el.feedback) el.feedback.textContent = "Task deleted.";
           showToast("Task deleted.", "success", 1800);
         });
@@ -505,6 +620,7 @@
         t.updatedAt = new Date().toISOString();
         save(tasks);
         render();
+        scheduleReminders(false);
       } else if (action === "edit"){
         openEditDialog(tasks[idx]);
       }
@@ -534,12 +650,11 @@
     var ti = arr.findIndex(function(t){ return t.id === targetId; });
     if (si < 0 || ti < 0) return;
     var item = arr.splice(si,1)[0];
-    if (si < ti) ti--; // account for removed element
+    if (si < ti) ti--;
     var newIdx = placeAfter ? ti+1 : ti;
     if (newIdx < 0) newIdx = 0;
     if (newIdx > arr.length) newIdx = arr.length;
     arr.splice(newIdx, 0, item);
-    // reassign sequential orders
     arr.forEach(function(t,i){ t.order = i+1; });
     save(tasks); render();
   }
@@ -590,7 +705,7 @@
   // ---------- Keyboard reordering (Shift+Arrow keys) ----------
   el.list.addEventListener('keydown', function(e){
     if (!(e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
-    if (!(e.shiftKey)) return; // require Shift to avoid normal navigation
+    if (!(e.shiftKey)) return;
     if (!((filters.sort === "manual") && !hasActiveFilters())) { showToast('Switch Sort to "Manual" and clear filters to reorder.', "warn", 2200); return; }
 
     var li = e.target.closest && e.target.closest('li');
@@ -608,7 +723,6 @@
     var targetId = arr[newIdx].id;
     moveTask(id, targetId, e.key === 'ArrowDown');
 
-    // restore focus to the moved item's handle
     setTimeout(function(){
       var focusEl = $('#task-list li[data-id="'+id+'"] .drag-handle') || $('#task-list li[data-id="'+id+'"]');
       if (focusEl && focusEl.focus) focusEl.focus();
@@ -661,7 +775,6 @@
           confirmAction("Replace existing tasks with imported tasks?\nOK = Replace, Cancel = Merge", { okLabel: "Replace", danger: true })
           .then(function(replace){
             if (replace) {
-              // Ensure order exists on imported set
               var needs = incoming.some(function(t){ return typeof t.order !== "number"; });
               if (needs) incoming.forEach(function(t, i){ t.order = i+1; });
               tasks = incoming;
@@ -677,6 +790,7 @@
             }
             save(tasks);
             render();
+            scheduleReminders(false);
             if (el.feedback) el.feedback.textContent = "Imported " + incoming.length + " task(s).";
             showToast("Imported " + incoming.length + " task(s).", "success", 1800);
           });
@@ -698,6 +812,7 @@
   });
 
   // ---------- boot ----------
-  console.info("Task Manager JS loaded with manual drag & drop + keyboard reordering.");
+  console.info("Task Manager JS loaded with manual drag & drop + keyboard reordering + reminders.");
   render();
+  scheduleReminders(false); // schedule once on boot
 })();
