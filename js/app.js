@@ -815,4 +815,53 @@
   console.info("Task Manager JS loaded with manual drag & drop + keyboard reordering + reminders.");
   render();
   scheduleReminders(false); // schedule once on boot
+
+  /* ========= Theme toggle (light periwinkle ↔ dark black) ========= */
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.documentElement;
+  const btn  = document.getElementById('theme-toggle'); // optional
+  const mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+
+  // Status-bar color for mobile browsers (uses your palette)
+  const THEME_COLORS = {
+    light: '#acc2fd', // periwinkle
+    dark:  '#000000'  // black
+  };
+
+  function applyTheme(theme /* 'light' | 'dark' */) {
+    if (theme) {
+      root.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      btn?.setAttribute('aria-pressed', String(theme === 'dark'));
+      if (metaTheme) metaTheme.setAttribute('content', THEME_COLORS[theme]);
+    } else {
+      // No manual choice → follow system preference
+      root.removeAttribute('data-theme');
+      localStorage.removeItem('theme');
+      if (metaTheme) metaTheme.setAttribute('content', mqDark.matches ? THEME_COLORS.dark : THEME_COLORS.light);
+    }
+  }
+
+  // 1) On load: use saved choice if exists; otherwise follow system
+  const saved = localStorage.getItem('theme'); // 'light' | 'dark' | null
+  if (saved === 'light' || saved === 'dark') {
+    applyTheme(saved);
+  } else {
+    applyTheme(null);
+  }
+
+  // 2) Button click → toggle
+  btn?.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme'); // may be null
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+  });
+
+  // 3) If following system (no saved choice), update on system change
+  mqDark.addEventListener?.('change', () => {
+    if (!localStorage.getItem('theme')) applyTheme(null);
+  });
+});
+
 })();
