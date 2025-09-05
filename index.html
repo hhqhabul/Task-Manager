@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Task Manager (HTML-only base)</title>
+  <title>Prioritize</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="A semantic, accessible task manager scaffold ready for progressive enhancement." />
   <meta name="color-scheme" content="light dark" />
@@ -29,7 +29,7 @@ if ('serviceWorker' in navigator) {
   <header role="banner">
     <div class="container">
       <nav aria-label="Primary">
-        <a href="#" rel="home" class="brand" aria-current="page">Task Manager</a>
+        <a href="#" rel="home" class="brand" aria-current="page">Prioritize</a>
         <ul>
           <li><a href="#add">Add Task</a></li>
           <li><a href="#tasks">Tasks</a></li>
@@ -116,7 +116,7 @@ if ('serviceWorker' in navigator) {
 
         <div>
           <!-- Submit won’t “do” anything without JS or a server; we keep it for structure -->
-          <button type="submit" aria-describedby="submit-hint">Add task</button>
+          <button type="submit" class="btn btn--primary" aria-describedby="submit-hint">Add task</button>
           <p id="submit-hint">This will be wired up later with JavaScript.</p>
         </div>
 
@@ -178,17 +178,17 @@ if ('serviceWorker' in navigator) {
           </div>
 
           <!-- Buttons -->
-          <div>
-            <button type="submit">Apply</button>
-            <button type="reset">Clear</button>
+          <div class="btn-row">
+            <button type="submit" class="btn btn--buy">Apply</button>
+            <button type="reset" class="btn btn--sell">Clear</button>
           </div>
 
           <!-- Data tools (Export / Import) -->
           <div>
             <label>Data</label>
             <div class="inline-actions">
-              <button type="button" id="btn-export">Export JSON</button>
-              <button type="button" id="btn-import">Import JSON</button>
+              <button type="button" id="btn-export" class="btn btn--accent">Export JSON</button>
+              <button type="button" id="btn-import" class="btn btn--ghost">Import JSON</button>
               <input type="file" id="import-file" accept="application/json" hidden>
             </div>
           </div>
@@ -211,7 +211,7 @@ if ('serviceWorker' in navigator) {
           </div>
           <p class="muted">Notifications use your browser’s permission. If blocked, you’ll still get in-app toasts.</p>
           <div>
-            <button type="submit">Save settings</button>
+            <button type="submit" class="btn btn--accent">Save settings</button>
           </div>
         </form>
       </details>
@@ -245,9 +245,9 @@ if ('serviceWorker' in navigator) {
               </ul>
               <div aria-label="Actions">
                 <button type="button" class="drag-handle" aria-label="Drag to reorder" title="Drag to reorder" hidden>↕</button>
-                <button type="button">Edit</button>
-                <button type="button">Delete</button>
-                <button type="button">Toggle</button>
+                <button type="button" class="btn btn--edit">Edit</button>
+                <button type="button" class="btn btn--sell">Delete</button>
+                <button type="button" class="btn btn--buy">Toggle</button>
               </div>
             </article>
           </li>
